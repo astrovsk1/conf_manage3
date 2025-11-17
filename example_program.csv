@@ -1,0 +1,5 @@
+instruction,field1,field2,field3
+LOAD_CONST,100,42
+NOT,101,100
+READ_MEM,5,102,103
+WRITE_MEM,104,105
