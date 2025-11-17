@@ -1,6 +1,7 @@
 import sys
 import csv
 import struct
+import os
 from typing import List, Dict, Tuple, Any
 
 
@@ -21,10 +22,12 @@ class VMAssembler:
             'D': 32
         }
 
+        self.command_size = 13  # 13 байт на команду
+
     def parse_arguments(self) -> Dict[str, Any]:
         # Парсинг аргументов командной строки
         if len(sys.argv) < 3:
-            print("Использование: python assembler.py <input_file> <output_file> [--test]")
+            print("Использование: python main.py <input_file> <output_file> [--test]")
             sys.exit(1)
 
         return {
@@ -116,6 +119,29 @@ class VMAssembler:
 
         return intermediate
 
+    def pack_fields_to_binary(self, command: Dict) -> bytes:
+        # Упаковка полей команды в бинарное представление
+        if 'D' in command:  # READ_MEM команда
+            # A: 5 бит, B: 6 бит, C: 32 бита, D: 32 бита
+            value = (command['A'] << 69) | (command['B'] << 63) | (command['C'] << 31) | command['D']
+            # Упаковка в 13 байт (104 бита)
+            packed = struct.pack('>13s', value.to_bytes(13, byteorder='big', signed=False))
+        else:  # Остальные команды (A: 5 бит, B: 32 бита, C: 32 бита)
+            value = (command['A'] << 64) | (command['B'] << 32) | command['C']
+            # Упаковка в 13 байт (104 бита)
+            packed = struct.pack('>13s', value.to_bytes(13, byteorder='big', signed=False))
+
+        return packed
+
+    def assemble_to_binary(self, intermediate: List[Dict]) -> bytes:
+        # Трансляция промежуточного представления в машинный код
+        binary_code = b''
+
+        for cmd in intermediate:
+            binary_code += self.pack_fields_to_binary(cmd)
+
+        return binary_code
+
     def display_intermediate_representation(self, intermediate: List[Dict]):
         # Вывод промежуточного представления в тестовом режиме
         print("Промежуточное представление программы:")
@@ -125,39 +151,60 @@ class VMAssembler:
                 print(f"  {field}: {value}")
             print()
 
-    def save_intermediate(self, intermediate: List[Dict], filename: str):
-        # Сохранение промежуточного представления (заглушка для этапа 1)
-        with open(filename, 'w') as f:
-            for cmd in intermediate:
-                f.write(str(cmd) + '\n')
+    def display_binary_representation(self, binary_code: bytes):
+        # Вывод бинарного представления в тестовом режиме
+        print("Бинарное представление программы:")
+        for i in range(0, len(binary_code), self.command_size):
+            chunk = binary_code[i:i + self.command_size]
+            hex_bytes = [f"0x{byte:02X}" for byte in chunk]
+            print(f"Команда {i // self.command_size}: {', '.join(hex_bytes)}")
+
+    def save_binary(self, binary_code: bytes, filename: str):
+        # Сохранение бинарного кода в файл
+        with open(filename, 'wb') as f:
+            f.write(binary_code)
+
+        # Вывод размера файла
+        file_size = os.path.getsize(filename)
+        print(f"Размер двоичного файла: {file_size} байт")
 
     def run_tests(self):
         # Запуск тестов из спецификации УВМ
         test_cases = [
             {
                 'name': 'LOAD_CONST тест',
-                'expected': {'A': 4, 'B': 279, 'C': 140},
+                'expected_intermediate': {'A': 4, 'B': 279, 'C': 140},
+                'expected_binary': bytes(
+                    [0xE4, 0x22, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
                 'csv_content': 'instruction,field1,field2\nLOAD_CONST,279,140'
             },
             {
                 'name': 'READ_MEM тест',
-                'expected': {'A': 6, 'B': 29, 'C': 344, 'D': 265},
+                'expected_intermediate': {'A': 6, 'B': 29, 'C': 344, 'D': 265},
+                'expected_binary': bytes(
+                    [0xA6, 0xC3, 0x0A, 0x00, 0x00, 0x48, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
                 'csv_content': 'instruction,field1,field2,field3\nREAD_MEM,29,344,265'
             },
             {
                 'name': 'WRITE_MEM тест',
-                'expected': {'A': 15, 'B': 591, 'C': 403},
+                'expected_intermediate': {'A': 15, 'B': 591, 'C': 403},
+                'expected_binary': bytes(
+                    [0xEF, 0x49, 0x00, 0x00, 0x60, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
                 'csv_content': 'instruction,field1,field2\nWRITE_MEM,591,403'
             },
             {
                 'name': 'NOT тест',
-                'expected': {'A': 2, 'B': 280, 'C': 240},
+                'expected_intermediate': {'A': 2, 'B': 280, 'C': 240},
+                'expected_binary': bytes(
+                    [0x02, 0x23, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
                 'csv_content': 'instruction,field1,field2\nNOT,280,240'
             }
         ]
 
         print("Запуск тестов из спецификации УВМ:")
         print("=" * 50)
+
+        all_passed = True
 
         for test in test_cases:
             print(f"\n{test['name']}:")
@@ -170,28 +217,49 @@ class VMAssembler:
                 # Читаем и ассемблируем команду
                 commands = self.read_assembly_file('test_temp.csv')
                 intermediate = self.assemble_to_intermediate(commands)
+                binary = self.assemble_to_binary(intermediate)
 
-                # Проверяем результат
+                # Проверяем промежуточное представление
                 if len(intermediate) == 1:
-                    result = intermediate[0]
-                    if result == test['expected']:
-                        print("   Результат соответствует ожидаемому")
-                        print(f"  Поля: {result}")
+                    result_intermediate = intermediate[0]
+                    if result_intermediate == test['expected_intermediate']:
+                        print("   Промежуточное представление верно")
                     else:
-                        print("   Результат не соответствует ожидаемому")
-                        print(f"  Ожидалось: {test['expected']}")
-                        print(f"  Получено: {result}")
+                        print("   ОШИБКА: Промежуточное представление неверно")
+                        print(f"    Ожидалось: {test['expected_intermediate']}")
+                        print(f"    Получено: {result_intermediate}")
+                        all_passed = False
+
+                # Проверяем бинарное представление
+                if binary == test['expected_binary']:
+                    print("   Бинарное представление верно")
+                    hex_bytes = [f"0x{byte:02X}" for byte in binary]
+                    print(f"    Байты: {', '.join(hex_bytes)}")
                 else:
-                    print("  ✗ ОШИБКА: Неверное количество команд")
+                    print("   ОШИБКА: Бинарное представление неверно")
+                    expected_hex = [f"0x{byte:02X}" for byte in test['expected_binary']]
+                    result_hex = [f"0x{byte:02X}" for byte in binary]
+                    print(f"    Ожидалось: {', '.join(expected_hex)}")
+                    print(f"    Получено: {', '.join(result_hex)}")
+                    all_passed = False
 
             except Exception as e:
                 print(f"   ОШИБКА: {e}")
+                all_passed = False
 
             finally:
                 # Удаляем временный файл
                 import os
                 if os.path.exists('test_temp.csv'):
                     os.remove('test_temp.csv')
+
+        print("\n" + "=" * 50)
+        if all_passed:
+            print(" Все тесты пройдены успешно!")
+        else:
+            print(" Некоторые тесты не пройдены")
+
+        return all_passed
 
 
 def main():
@@ -214,8 +282,14 @@ def main():
         # Вывод промежуточного представления
         assembler.display_intermediate_representation(intermediate)
 
+        # Трансляция в бинарный код
+        binary_code = assembler.assemble_to_binary(intermediate)
+
+        # Вывод бинарного представления
+        assembler.display_binary_representation(binary_code)
+
         # Сохранение результата
-        assembler.save_intermediate(intermediate, args['output_file'])
+        assembler.save_binary(binary_code, args['output_file'])
 
         print(f"Ассемблирование завершено успешно!")
         print(f"Обработано команд: {len(intermediate)}")
