@@ -1,0 +1,5 @@
+instruction,field1,field2,field3
+LOAD_CONST,279,140
+READ_MEM,29,344,265
+WRITE_MEM,591,403
+NOT,280,240

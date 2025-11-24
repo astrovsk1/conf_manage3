@@ -1,0 +1,8 @@
+python main.py test_load_const.csv output.bin --test
+python main.py test_read_mem.csv output.bin --test
+python main.py test_write_mem.csv output.bin --test
+python main.py test_not.csv output.bin --test
+
+python main.py all_tests_program.csv all_tests.bin --test - все команды сразу
+
+python main.py example_program.csv program.bin

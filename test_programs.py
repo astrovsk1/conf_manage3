@@ -1,44 +1,34 @@
-# test_programs.py
-# Тестовые программы для проверки ассемблера УВМ (Этап 2)
-
+# Тестовые программы для проверки ассемблера УВМ
 def create_test_files():
-    # Создание тестовых файлов для всех команд спецификации
-
-    # Тест LOAD_CONST (A=4, B=279, C=140)
     with open('test_load_const.csv', 'w', encoding='utf-8') as f:
         f.write("instruction,field1,field2\n")
-        f.write("LOAD_CONST,279,140\n")
+        f.write("LOAD_CONST,31,140\n")
 
-    # Тест READ_MEM (A=6, B=29, C=344, D=265)
     with open('test_read_mem.csv', 'w', encoding='utf-8') as f:
         f.write("instruction,field1,field2,field3\n")
         f.write("READ_MEM,29,344,265\n")
 
-    # Тест WRITE_MEM (A=15, B=591, C=403)
     with open('test_write_mem.csv', 'w', encoding='utf-8') as f:
         f.write("instruction,field1,field2\n")
-        f.write("WRITE_MEM,591,403\n")
+        f.write("WRITE_MEM,63,403\n")
 
-    # Тест NOT (A=2, B=280, C=240)
     with open('test_not.csv', 'w', encoding='utf-8') as f:
         f.write("instruction,field1,field2\n")
-        f.write("NOT,280,240\n")
+        f.write("NOT,45,240\n")
 
-    # Программа со всеми тестовыми командами
     with open('all_tests_program.csv', 'w', encoding='utf-8') as f:
         f.write("instruction,field1,field2,field3\n")
-        f.write("LOAD_CONST,279,140\n")
+        f.write("LOAD_CONST,31,140\n")
         f.write("READ_MEM,29,344,265\n")
-        f.write("WRITE_MEM,591,403\n")
-        f.write("NOT,280,240\n")
+        f.write("WRITE_MEM,63,403\n")
+        f.write("NOT,45,240\n")
 
-    # Пример программы с несколькими командами
     with open('example_program.csv', 'w', encoding='utf-8') as f:
         f.write("instruction,field1,field2,field3\n")
-        f.write("LOAD_CONST,100,42\n")
-        f.write("NOT,101,100\n")
+        f.write("LOAD_CONST,10,42\n")
+        f.write("NOT,11,100\n")
         f.write("READ_MEM,5,102,103\n")
-        f.write("WRITE_MEM,104,105\n")
+        f.write("WRITE_MEM,12,105\n")
 
     print("Созданы тестовые файлы для Этапа 2:")
     print("- test_load_const.csv (LOAD_CONST тест)")
@@ -49,8 +39,8 @@ def create_test_files():
     print("- example_program.csv (пример программы)")
 
 
+# Проверка созданных тестовых файлов
 def verify_test_files():
-    # Проверка созданных тестовых файлов
     test_files = [
         'test_load_const.csv',
         'test_read_mem.csv',
@@ -75,7 +65,7 @@ if __name__ == "__main__":
     create_test_files()
     verify_test_files()
 
-    print("\nИнструкция по тестированию Этапа 2:")
+    print("\nИнструкция по тестированию:")
     print("1. Запуск тестов из спецификации:")
     print("   python main.py test_load_const.csv output.bin --test")
     print("   python main.py test_read_mem.csv output.bin --test")
